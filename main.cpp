@@ -166,6 +166,77 @@ void loadData_json(string filename)
 }
 
 /**
+ * @brief Buat Menyimpan data ke persistence JSON
+ *
+ * @param filename nama file BUKAN path
+ * @param data objek data yang akan dimasukkan atau disimpan
+ */
+void saveData_json(string filename, const json &data)
+{
+    fs::path mainPath = __FILE__;
+    fs::path cwd = mainPath.parent_path();
+    fs::path full_path = cwd / "json" / filename;
+
+    ofstream file(full_path);
+    if (!file.is_open())
+    {
+        cerr << "Error: Gagal menyimpan file JSON!" << endl;
+        return;
+    }
+
+    file << data.dump(4);
+    cout << "Data berhasil disimpan ke " << filename << endl;
+}
+
+/**
+ * @brief Menambah node univ dan merefresh node runtime
+ *
+ * @param newUnivName nama univ baru [singkatan]
+ * @param filename nama file JSON BUKAN Path
+ */
+void addNodeAndRefresh(const string &newUnivName, string filename)
+{
+    cout << "\n=== TAMBAH NODE BARU DAN REFRESH ===\n"
+         << endl;
+
+    fs::path mainPath = __FILE__;
+    fs::path cwd = mainPath.parent_path();
+    fs::path full_path = cwd / "json" / filename;
+
+    ifstream inFile(full_path);
+    if (!inFile.is_open())
+    {
+        cerr << "Error: Gagal membaca file JSON untuk penambahan." << endl;
+        return;
+    }
+
+    json data = json::parse(inFile); // Parsing file JSON mentah ke objek data
+    inFile.close();                  // Close Stream File
+
+    int newId = data["nodes"].size();
+    if (newId >= MAX_NODES)
+    {
+        cerr << "Error: MAX_NODES (" << MAX_NODES << ") sudah tercapai. Gagal menambah node." << endl;
+        return;
+    }
+
+    // Menambahkan Node kedalam data
+    json newNode = {
+        {"id", newId},
+        {"name", newUnivName}};
+    data["nodes"].push_back(newNode);
+    cout << "Node '" << newUnivName << "' berhasil ditambahkan dengan ID: " << newId << "." << endl;
+
+    // Menyimpan Langsung ke file JSON
+    saveData_json(filename, data);
+
+    cout << "\nMerefresh struktur graf di memori..." << endl;
+    loadData_json(filename);
+
+    cout << "Refresh Selesai. Total Kampus baru: " << numNodes << endl;
+}
+
+/**
  * @brief Menampilkan hasil perhitungan dijkstra bidirect
  *
  * @param intersectNodeIdx [index] index node intersect
@@ -339,49 +410,153 @@ void bidirectionalDijkstra(int startNode, int endNode)
 // TODO - Buat ulang menunya
 int main()
 {
-    cout << "=== PENCARI JALAN KAMPUS JOGJA (Adjacency List Edition) ===\n"
-         << endl;
+    cout << "=== PENCARI JALAN KAMPUS JOGJA (Dijkstra Bidirectional) ===" << endl;
 
+    // Nama file json BUKAN pathnya
+    string jsonFile = "universitas.json";
     // Load Data Univ dari JSON
-    loadData_json("universitas.json");
-
-    // FIXME Buat Debugging
-    for (int i = 0; i < numNodes; i++)
-    {
-        cout << ">>> Adjacency List : " << univ[i].name << endl;
-
-        EdgeNode *curr = adjHead[i];
-
-        cout << "Adjacency Listnyo: " << endl;
-        while (curr != nullptr)
-        {
-
-            cout << univ[curr->to].name << "|" << curr->to << endl;
-            curr = curr->next;
-        }
-    }
+    loadData_json(jsonFile);
 
     int startIdx, endIdx;
+    short opt;
 
-    cout << "List Kampus:" << endl;
-    for (int i = 0; i < numNodes; i++)
+    do
     {
-        cout << i << ": " << univ[i].name << endl;
-    }
+        cout << "\n--- MENU UTAMA ---" << endl;
+        cout << "1: Cari Jalur Terpendek" << endl;
+        cout << "2: Tampilkan Adjacency List (Debug)" << endl;
+        cout << "3: Tambah Node Kampus Baru" << endl;
+        cout << "4: Keluar" << endl;
+        cout << "Pilihan: ";
 
-    cout << "\nDari ID Kampus: ";
-    cin >> startIdx;
-    cout << "Ke ID Kampus: ";
-    cin >> endIdx;
+        // Error Handling
+        if (!(cin >> opt))
+        {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            opt = 0;
+            cout << "Input tidak valid. Coba lagi." << endl;
+            continue;
+        }
 
-    if (startIdx >= 0 && startIdx < numNodes && endIdx >= 0 && endIdx < numNodes)
-    {
-        bidirectionalDijkstra(startIdx, endIdx);
-    }
-    else
-    {
-        cout << "ID tidak valid!" << endl;
-    }
+        switch (opt)
+        {
+        case 1:
+        {
+            cout << "List Kampus:" << endl;
+            for (int i = 0; i < numNodes; i++)
+            {
+                cout << i << ": " << univ[i].name << endl;
+            }
+            cout << "\nDari ID Kampus: ";
+            cin >> startIdx;
+            cout << "Ke ID Kampus: ";
+            cin >> endIdx;
+
+            if (startIdx >= 0 && startIdx < numNodes && endIdx >= 0 && endIdx < numNodes)
+            {
+                bidirectionalDijkstra(startIdx, endIdx);
+            }
+            else
+            {
+                cout << "ID tidak valid!" << endl;
+            }
+        }
+        break;
+
+        case 2:
+        {
+            // Menampilkan Seluruh Adjacency List
+            for (int i = 0; i < numNodes; i++)
+            {
+                cout << "\n>>> Adjacency List : " << univ[i].name << endl;
+                EdgeNode *curr = adjHead[i];
+                cout << "Tetangga: ";
+                if (curr == nullptr)
+                    cout << "Tidak ada";
+                while (curr != nullptr)
+                {
+                    cout << "[" << univ[curr->to].name << "|W:" << curr->weight << "] ";
+                    curr = curr->next;
+                }
+                cout << endl;
+            }
+        }
+        break;
+
+        case 3:
+        {
+            string newUnivName;
+            cout << "Masukkan Nama Kampus Baru (Singkatan ex: UTIYI ): ";
+            cin >> newUnivName;
+
+            // Tambah Node Univ
+            addNodeAndRefresh(newUnivName, jsonFile);
+
+            // Menambahkan Edges satu persatu BUKAN yang akan di pass ke fungsi
+            int newId = numNodes - 1;
+
+            cout << "\n--- Tambahkan Edges / Jalan untuk " << newUnivName << " (ID " << newId << ") ---" << endl;
+            cout << "List Univ Lama:" << endl;
+            for (int i = 0; i < newId; i++)
+            {
+                cout << i << ": " << univ[i].name << endl;
+            }
+
+            while (true)
+            {
+                int targetId, weight;
+                cout << "  Target ID (Lama) / -1 untuk selesai: ";
+                if (!(cin >> targetId) || targetId == -1)
+                    break;
+
+                // Cek ID, harus kurang dari ID baru
+                if (targetId >= newId || targetId < 0)
+                {
+                    cout << "Id target tidak valid. Ulangi!" << endl;
+                    continue;
+                }
+
+                cout << "  Jarak (Weight) ke " << univ[targetId].name << ": ";
+                if (!(cin >> weight))
+                    break;
+
+                fs::path mainPath = __FILE__;
+                fs::path cwd = mainPath.parent_path();
+                fs::path full_path = cwd / "json" / jsonFile;
+
+                ifstream inFile(full_path);
+                json data = json::parse(inFile);
+                inFile.close();
+
+                // Penambahan Edges kedalam data
+                json newEdge = {
+                    {"source", newId},
+                    {"target", targetId},
+                    {"weight", weight}};
+                data["edges"].push_back(newEdge);
+
+                saveData_json(jsonFile, data); // Simpan
+                loadData_json(jsonFile);       // Refresh di Runtime
+                cout << "-> Koneksi " << newUnivName << " <---> " << univ[targetId].name << " berhasil ditambahkan dan di-refresh." << endl;
+            }
+        }
+        break;
+
+        case 4:
+        {
+            cout << "Terima kasih sudah menggunakan program ini!!" << endl;
+        }
+        break;
+
+        default:
+        {
+            cout << "Apa yang anda Mau sebenarnya?" << endl;
+        }
+
+        break;
+        }
+    } while (opt != 4);
 
     system("pause");
     return 0;

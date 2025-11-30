@@ -1,0 +1,38 @@
+{
+	"nodes": [
+		{
+			"[id] Universitas": "[int] Id Universitas , {constraint} harus Unik, {constraint} harus Urut ",
+			"[name] Universitas": "[String] Nama Universitas"
+		},
+		{
+			"id": 1,
+			"name": "UNY"
+		},
+		{
+			"id": 2,
+			"name": "UPN"
+		}
+	],
+	"edges": [
+		{
+			"[source] Node awal": "[int] Id Node awal, {constraint} Harus ada di node ",
+			"[target] Node Tujuan": "[int] Id Node tujuan, {constraint} Harus ada di node ",
+			"[weight] Beban Jarak / Nilai Jarak": "[int] jarak antara node awal dan node tujuan, {constraint} Tidak Boleh 0"
+		},
+		{
+			"source": 0,
+			"target": 1,
+			"weight": 2
+		},
+		{
+			"source": 0,
+			"target": 1,
+			"weight": 2
+		},
+		{
+			"source": 1,
+			"target": 2,
+			"weight": 4
+		}
+	]
+}

@@ -13,7 +13,7 @@
 #include <string>
 #include <limits>
 #include <filesystem>
-#include "include/json.hpp" // Pastikan path ini benar!
+#include "include/json.hpp"
 
 using json = nlohmann::json;
 using namespace std;
@@ -80,7 +80,7 @@ void addEdge(int s, int t, int w)
  *
  * @param dist [Array] Jarak tiap edge
  * @param visited [Array] node sudah dikunjungi atau
- *               belum kalau sudah `True` kalau belum `False`
+ * belum kalau sudah `True` kalau belum `False`
  * @param n Jumlah Edges yang mau di cari
  * @return `int` Index node `adjHead[]` yang paling dekat dari starting point
  */
@@ -113,8 +113,8 @@ int getMinDistNode(const int dist[], const bool visited[], const int n)
 void loadData_json(string filename)
 {
     // Path Searching
-    fs::path mainPath = __FILE__;                 // Ngambil Path file cpp ini
-    fs::path cwd = mainPath.parent_path();        // ngambil parent path dari Working Directory ini
+    fs::path mainPath = __FILE__;
+    fs::path cwd = mainPath.parent_path();
     fs::path full_path = cwd / "json" / filename; // Ngambil File Json itu yang digabgung dengan full Path
 
     // Mbukak File JSON
@@ -122,21 +122,20 @@ void loadData_json(string filename)
     // Error Handling kalau misal nanti file ternyata ga kebuka atau apalah itu
     if (!file.is_open())
     {
-        cerr << "Error: Gagal buka file JSON, Pastikan [" << filename << "] ada." << endl;
+        cerr << "Error: Gagal buka file JSON, Pastikan [" << filename << "] ada. Mencoba path: " << full_path << endl;
         exit(1);
     }
 
     // Ngeparse file kedalam Object data json
     json data = json::parse(file);
 
-    // Reset Head Pointers
+    // Reset Head Pointers (Clean up old linked list nodes is not implemented, potential memory leak)
     for (int i = 0; i < MAX_NODES; i++)
     {
         adjHead[i] = nullptr; // Ngeset seluruh array adjHead menjadi Null Pointer sebagai awalan
     }
 
     // Load Nodes
-    // NOTE - INDEX ID HARUS SUDAH URUT DI JSON!!
     numNodes = data["nodes"].size(); // Dengan Asumsi index ID itu terurut
     for (json &node : data["nodes"])
     {
@@ -163,6 +162,93 @@ void loadData_json(string filename)
     }
 
     cout << "Data di-inject ke Linked List, Total Kampus: " << numNodes << endl;
+}
+
+/**
+ * @brief Buat menulis Ulang data JSON
+ *
+ * @param filename nama file JSON, BUKAN path
+ * @param data import data json yang akan ditulis ulang
+ */
+void fetchData_json(string filename, const json &data)
+{
+    fs::path mainPath = __FILE__;
+    fs::path cwd = mainPath.parent_path();
+    fs::path full_path = cwd / "json" / filename;
+
+    ofstream file(full_path);
+    if (!file.is_open())
+    {
+        cout << "Error: Gagal menyimpan file JSON" << endl;
+        return;
+    }
+    // Pretty printing JSON
+    file << data.dump(4);
+    cout << "Data berhasil disimpan ke " << filename << endl;
+}
+
+/**
+ * @brief Menghapus node dari JSON file dan otomatis ngerefresh
+ *
+ * @param deleteId `id` node yang akan dihapus
+ */
+void deleteNodeAndRefresh(int deleteId, string filename)
+{
+    cout << "\n=== DELETE NODE DAN REFRESH ===\n"
+         << endl;
+
+    fs::path mainPath = __FILE__;
+    fs::path cwd = mainPath.parent_path();
+    fs::path full_path = cwd / "json" / filename;
+
+    ifstream inFile(full_path);
+    if (!inFile.is_open())
+    {
+        cout << "Error: Gagal membaca file JSON untuk penghapusan." << endl;
+        return;
+    }
+    json data = json::parse(inFile);
+    inFile.close();
+
+    // 1. Hapus Node dari Array "nodes"
+    cout << "Mencari dan menghapus Node ID: " << deleteId << "..." << endl;
+
+    for (auto it = data["nodes"].begin(); it != data["nodes"].end();)
+    {
+        if (it->at("id") == deleteId)
+        {
+            cout << "Node '" << it->at("name") << "' (ID " << deleteId << ") berhasil dihapus." << endl;
+            it = data["nodes"].erase(it); // Hapus dan pindah iterator
+        }
+        else
+        {
+            ++it;
+        }
+    }
+
+    // 2. Hapus Edges yang terkait
+    cout << "Mencari dan menghapus Edges yang terhubung ke ID: " << deleteId << "..." << endl;
+    for (auto it = data["edges"].begin(); it != data["edges"].end();)
+    {
+        if (it->at("source") == deleteId || it->at("target") == deleteId)
+        {
+            cout << "Edge (" << it->at("source") << "->" << it->at("target") << ") dihapus." << endl;
+            it = data["edges"].erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+
+    // 3. Simpan Data JSON yang sudah dimodifikasi
+    fetchData_json(filename, data);
+
+    // 4. Refresh Graph di Memori
+    cout << "\nMerefresh struktur graf di memori..." << endl;
+    loadData_json(filename); // Panggil ulang untuk rebuild adjHead/univ
+
+    cout << "Refresh Selesai. Total Kampus baru: " << numNodes << endl;
 }
 
 /**
@@ -230,7 +316,6 @@ void bidirectionalDijkstra(int startNode, int endNode)
     while (true)
     {
         // Forward Step (dari START)
-        // Index Node dari Starting Point
         int startNodeIdx = getMinDistNode(distStart, visitedStart, numNodes);
 
         // Error Handling kalau Index ga valid
@@ -251,14 +336,15 @@ void bidirectionalDijkstra(int startNode, int endNode)
                     parentStart[v] = startNodeIdx;
                 }
 
-                // FIXME Buat Debugging
-                cout << "Traversal (Start) " << univ[curr->to].name << ", Distance:  " << distStart[v] << endl;
+                // FIX DEBUGGING OUTPUT
+                cout << "Traversal (Start) " << univ[curr->to].name << ", Distance:  " << distStart[v] << endl;
 
                 curr = curr->next; // Geser ke tetangga berikutnya
             }
         }
 
         // Backward Traversal (Dari END)
+        // [FIX SHADOWING] Ganti nama variabel lokal
         int endNodeIdx = getMinDistNode(distEnd, visitedEnd, numNodes);
         if (endNodeIdx != -1)
         {
@@ -268,8 +354,8 @@ void bidirectionalDijkstra(int startNode, int endNode)
             EdgeNode *curr = adjHead[endNodeIdx];
             while (curr != nullptr)
             {
-                int e = curr->to;          // Index kampus arah edges
-                int weight = curr->weight; // beban Edges kearah kampus
+                int e = curr->to;
+                int weight = curr->weight;
 
                 if (!visitedEnd[e] && distEnd[endNodeIdx] + weight < distEnd[e])
                 {
@@ -277,8 +363,8 @@ void bidirectionalDijkstra(int startNode, int endNode)
                     parentEnd[e] = endNodeIdx;
                 }
 
-                // FIXME Buat Debugging
-                cout << "Traversal (End) " << univ[curr->to].name << ", Distance:  " << distEnd[e] << endl;
+                // FIX DEBUGGING OUTPUT
+                cout << "Traversal (End) " << univ[curr->to].name << ", Distance:  " << distEnd[e] << endl;
 
                 curr = curr->next; // Geser ke tetangga berikutnya
             }
@@ -339,13 +425,13 @@ void bidirectionalDijkstra(int startNode, int endNode)
 // TODO - Buat ulang menunya
 int main()
 {
-    cout << "=== PENCARI JALAN KAMPUS JOGJA (Adjacency List Edition) ===\n"
-         << endl;
+    cout << "=== Pencari Shortest Path Univ Jogja ===" << endl;
 
+    string fileJson = "universitas.json";
     // Load Data Univ dari JSON
-    loadData_json("universitas.json");
+    loadData_json(fileJson);
 
-    // FIXME Buat Debugging
+    // NOTE Buat Debugging (Menampilkan Adjacency List)
     for (int i = 0; i < numNodes; i++)
     {
         cout << ">>> Adjacency List : " << univ[i].name << endl;
@@ -362,27 +448,63 @@ int main()
     }
 
     int startIdx, endIdx;
+    short opt;
 
-    cout << "List Kampus:" << endl;
-    for (int i = 0; i < numNodes; i++)
+    do
     {
-        cout << i << ": " << univ[i].name << endl;
-    }
+        cout << "\n--- MENU OPERASI ---" << endl;
+        cout << "1: Cari Jalur Terpendek" << endl;
+        cout << "2: Hapus Node Kampus dan Refresh (Permanen)" << endl;
+        cout << "3: Keluar" << endl;
+        cout << "Pilihan: ";
+        cin >> opt;
 
-    cout << "\nDari ID Kampus: ";
-    cin >> startIdx;
-    cout << "Ke ID Kampus: ";
-    cin >> endIdx;
+        if (opt == 1)
+        {
+            cout << "List Kampus:" << endl;
+            for (int i = 0; i < numNodes; i++)
+            {
+                cout << i << ": " << univ[i].name << endl;
+            }
 
-    if (startIdx >= 0 && startIdx < numNodes && endIdx >= 0 && endIdx < numNodes)
-    {
-        bidirectionalDijkstra(startIdx, endIdx);
-    }
-    else
-    {
-        cout << "ID tidak valid!" << endl;
-    }
+            cout << "\nDari ID Kampus: ";
+            cin >> startIdx;
+            cout << "Ke ID Kampus: ";
+            cin >> endIdx;
 
-    system("pause");
+            if (startIdx >= 0 && startIdx < numNodes && endIdx >= 0 && endIdx < numNodes)
+            {
+                bidirectionalDijkstra(startIdx, endIdx);
+            }
+            else
+            {
+                cout << "ID tidak valid!" << endl;
+            }
+        }
+        else if (opt == 2)
+        {
+            cout << "Masukkan ID Kampus yang ingin dihapus: ";
+            int deleteId;
+            cin >> deleteId;
+            if (deleteId >= 0 && deleteId < numNodes)
+            {
+                deleteNodeAndRefresh(deleteId, fileJson);
+            }
+            else
+            {
+                cout << "ID tidak valid atau diluar jangkauan graph saat ini." << endl;
+            }
+        }
+        else if (opt == 3)
+        {
+            cout << "Terima kasih sudah menggunakan program ini! Sampai jumpa." << endl;
+        }
+        else
+        {
+            cout << "Pilihan tidak valid." << endl;
+        }
+    } while (opt != 3);
+
+    // system("pause"); // Hapus atau uncomment jika di OS non-Windows/IDE
     return 0;
 }

@@ -9,7 +9,8 @@
 		{ "id": 6, "name": "UMY" },
 		{ "id": 7, "name": "UAJY" },
 		{ "id": 8, "name": "ISI" },
-		{ "id": 9, "name": "UIN" }
+		{ "id": 9, "name": "UIN" },
+		{ "id": 10, "name": "UTY" }
 	],
 	"edges": [
 		{ "source": 0, "target": 1, "weight": 2 },
@@ -22,6 +23,7 @@
 		{ "source": 6, "target": 0, "weight": 10 },
 		{ "source": 4, "target": 8, "weight": 5 },
 		{ "source": 6, "target": 8, "weight": 8 },
-		{ "source": 2, "target": 3, "weight": 5 }
+		{ "source": 2, "target": 3, "weight": 5 },
+		{ "source": 10, "target": 0, "weight": 7 }
 	]
 }

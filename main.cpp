@@ -13,14 +13,14 @@
 #include <string>
 #include <limits>
 #include <filesystem>
-#include "include/json.hpp" // Pastikan path ini benar!
+#include "include/json.hpp"
 
 using json = nlohmann::json;
 using namespace std;
 namespace fs = std::filesystem;
 
 // Constanta Variabel
-const int MAX_NODES = 20; // Ini Estimasi Awal bisa dirubah, sekaligus mengestimasi
+const int MAX_NODES = 20; // Ini Estimasi Awal
 const int INF = numeric_limits<int>::max();
 
 // Struktur Info dari Kampus
@@ -36,14 +36,14 @@ struct UnivNode
  */
 struct EdgeNode
 {
-    int to;         // Node Tujuan
+    int to;         // [INDEX] Node Tujuan
     int weight;     // Biaya ke kampus
     EdgeNode *next; // Tetangga Kampus Lainnya
 };
 
 UnivNode univ[MAX_NODES];     // Array daftar Universitas yang nanti dipakai
-EdgeNode *adjHead[MAX_NODES]; // Array of Pointers (Head dari Linked List)
-int numNodes = 0;
+EdgeNode *adjHead[MAX_NODES]; // Array Adjacency List
+int numNodes = 0;             // Jumlah Node/Univ yang telah diinputkan
 
 // Variabel untuk Algoritma Dijkstra
 int distStart[MAX_NODES];     // Jarak dari start
@@ -106,9 +106,9 @@ int getMinDistNode(const int dist[], const bool visited[], const int n)
 }
 
 /**
- * @brief Load Data dari JSON ke Adjacency LIst
+ * @brief Load Data dari JSON ke Adjacency LIst sekaligus Ngerefresh data
  *
- * @param filename Nama File json berupa PATH
+ * @param filename Nama File json BUKAN path
  */
 void loadData_json(string filename)
 {
@@ -132,17 +132,27 @@ void loadData_json(string filename)
     // Reset Head Pointers
     for (int i = 0; i < MAX_NODES; i++)
     {
-        adjHead[i] = nullptr; // Ngeset seluruh array adjHead menjadi Null Pointer sebagai awalan
+        // Hapus memori lama
+        EdgeNode *curr = adjHead[i];
+        while (curr != nullptr)
+        {
+            EdgeNode *oldEgdes = curr;
+            curr = curr->next;
+            delete oldEgdes;
+        }
+        // Ngeset seluruh array adjHead menjadi Null Pointer sebagai awalan
+        adjHead[i] = nullptr;
     }
 
     // Load Nodes
-    // NOTE - INDEX ID HARUS SUDAH URUT DI JSON!!
+    // NOTE - INDEX ID HARUS SUDAH URUT DI JSON!!, WAJIB TOLONG PASTIKAN LAGI
+    // WAJIB PERIKSA LAGI ID JSON
     numNodes = data["nodes"].size(); // Dengan Asumsi index ID itu terurut
     for (json &node : data["nodes"])
     {
         int id = node["id"];
 
-        // Error Handling jika id lebih dari node yang diperbolehkan
+        // Additional check jika id lebih dari node yang diperbolehkan
         if (id < MAX_NODES)
         {
             univ[id].id = id;
@@ -184,7 +194,7 @@ void saveData_json(string filename, const json &data)
         return;
     }
 
-    file << data.dump(4);
+    file << data.dump(3);
     cout << "Data berhasil disimpan ke " << filename << endl;
 }
 
@@ -225,7 +235,7 @@ void addNodeAndRefresh(const string &newUnivName, string filename)
         {"id", newId},
         {"name", newUnivName}};
     data["nodes"].push_back(newNode);
-    cout << "Node '" << newUnivName << "' berhasil ditambahkan dengan ID: " << newId << "." << endl;
+    cout << "Node " << newUnivName << " berhasil ditambahkan dengan ID: " << newId << "." << endl;
 
     // Menyimpan Langsung ke file JSON
     saveData_json(filename, data);
@@ -300,13 +310,15 @@ void bidirectionalDijkstra(int startNode, int endNode)
     // Selama Belum ada `break`
     while (true)
     {
-        // Forward Step (dari START)
+        // Forward Traverse (dari START)
         // Index Node dari Starting Point
         int startNodeIdx = getMinDistNode(distStart, visitedStart, numNodes);
 
         // Error Handling kalau Index ga valid
         if (startNodeIdx != -1)
         {
+            // REVIEW - Buat Debugging
+            cout << "\033[32mStart Pos : \033[0m" << univ[startNodeIdx].name << endl;
             visitedStart[startNodeIdx] = true;
 
             // Traversal Linked List, dari Adjacency paling baru
@@ -321,8 +333,7 @@ void bidirectionalDijkstra(int startNode, int endNode)
                     distStart[v] = distStart[startNodeIdx] + weight;
                     parentStart[v] = startNodeIdx;
                 }
-
-                // FIXME Buat Debugging
+                // REVIEW - Buat Debugging
                 cout << "Traversal (Start) " << univ[curr->to].name << ", Distance:  " << distStart[v] << endl;
 
                 curr = curr->next; // Geser ke tetangga berikutnya
@@ -333,6 +344,9 @@ void bidirectionalDijkstra(int startNode, int endNode)
         int endNodeIdx = getMinDistNode(distEnd, visitedEnd, numNodes);
         if (endNodeIdx != -1)
         {
+            // REVIEW Buat Debugging
+            cout << "\033[31mEnd Pos : \033[0m" << univ[endNodeIdx].name << endl;
+
             visitedEnd[endNodeIdx] = true;
 
             // Traversal Linked List, dari Adjacency paling baru
@@ -347,8 +361,7 @@ void bidirectionalDijkstra(int startNode, int endNode)
                     distEnd[e] = distEnd[endNodeIdx] + weight;
                     parentEnd[e] = endNodeIdx;
                 }
-
-                // FIXME Buat Debugging
+                // REVIEW Buat Debugging
                 cout << "Traversal (End) " << univ[curr->to].name << ", Distance:  " << distEnd[e] << endl;
 
                 curr = curr->next; // Geser ke tetangga berikutnya
@@ -360,10 +373,11 @@ void bidirectionalDijkstra(int startNode, int endNode)
             break;
 
         // Cek titik temu terbaik
+        // NOTE - Inisialisasi awal jika tidak berubah berarti ada yang salah
         int currentBest = INF;
         int currentIntersect = -1;
 
-        // Scan semua node buat cari titik temu (Intersection Check)
+        // Traverse semua node buat cari titik temu (Intersection Check)
         for (int i = 0; i < numNodes; i++)
         {
             if (distStart[i] != INF && distEnd[i] != INF)
@@ -374,28 +388,32 @@ void bidirectionalDijkstra(int startNode, int endNode)
                     currentBest = total;
                     currentIntersect = i;
                 }
+                cout << "\n>>Distance Check [" << univ[i].name << "] : " << distStart[i] << " ; " << distEnd[i];
             }
         }
 
-        // Kondisi berhenti: Node u sudah dikunjungi dari kedua arah Ter Intersect
+        // Kondisi Final stop, Node u sudah dikunjungi dari kedua arah Ter Intersect
         if (visitedStart[startNodeIdx] && visitedEnd[startNodeIdx])
         {
             if (currentIntersect != -1)
             {
                 intersectNode = currentIntersect;
                 bestDist = currentBest;
+                // REVIEW - Buat Debug
+                cout << "\n>> Iterasi >> Terakhir " << "Current Best: " << currentBest << " Intersect Loc: " << currentIntersect << endl
+                     << endl;
                 break;
             }
         }
-
-        // Buat Debug
-        cout << ">> Iterasi " << endl;
+        // REVIEW - Buat Debug
+        cout << "\n>> Iterasi >> " << "Current Best: " << currentBest << " Intersect Loc: " << currentIntersect << endl
+             << endl;
     }
 
     // Jika bertemu dengan node intersect
     if (intersectNode != -1)
     {
-        cout << "Terintercept di : " << univ[intersectNode].name << endl;
+        cout << "\n>> Terintercept di : " << univ[intersectNode].name << endl;
         // Menampilkan seluruh
         printPath(intersectNode, startNode, endNode);
         cout << "Total Jarak: " << bestDist << " km" << endl;
@@ -407,7 +425,6 @@ void bidirectionalDijkstra(int startNode, int endNode)
     }
 }
 
-// TODO - Buat ulang menunya
 int main()
 {
     cout << "=== PENCARI JALAN KAMPUS JOGJA (Dijkstra Bidirectional) ===" << endl;
@@ -426,7 +443,8 @@ int main()
         cout << "1: Cari Jalur Terpendek" << endl;
         cout << "2: Tampilkan Adjacency List (Debug)" << endl;
         cout << "3: Tambah Node Kampus Baru" << endl;
-        cout << "4: Keluar" << endl;
+        cout << "4: Refresh" << endl;
+        cout << "5: Keluar" << endl;
         cout << "Pilihan: ";
 
         // Error Handling
@@ -453,6 +471,7 @@ int main()
             cout << "Ke ID Kampus: ";
             cin >> endIdx;
 
+            // Error Handling User Input
             if (startIdx >= 0 && startIdx < numNodes && endIdx >= 0 && endIdx < numNodes)
             {
                 bidirectionalDijkstra(startIdx, endIdx);
@@ -545,6 +564,13 @@ int main()
 
         case 4:
         {
+            cout << "\n>> Refresh File from JSON" << jsonFile << endl;
+            loadData_json(jsonFile);
+        }
+        break;
+
+        case 5:
+        {
             cout << "Terima kasih sudah menggunakan program ini!!" << endl;
         }
         break;
@@ -556,8 +582,9 @@ int main()
 
         break;
         }
-    } while (opt != 4);
+    } while (opt != 5);
 
-    system("pause");
+    // REVIEW - Buat Debugging
+    // system("pause");
     return 0;
 }

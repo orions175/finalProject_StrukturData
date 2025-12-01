@@ -267,6 +267,7 @@ void printPath(const int intersectNodeIdx, const int startNodeIdx, const int end
         pathStr = univ[curr].name + (curr == intersectNodeIdx ? "" : " -> ") + pathStr;
         curr = parentStart[curr];
     }
+    cout << "\033[34m";
     cout << pathStr;
 
     // dari Intersect ke node tujuan
@@ -276,7 +277,7 @@ void printPath(const int intersectNodeIdx, const int startNodeIdx, const int end
         cout << " -> " << univ[curr].name;
         curr = parentEnd[curr];
     }
-    cout << endl;
+    cout << "\033[0m" << endl;
 }
 
 /**
@@ -304,12 +305,14 @@ void bidirectionalDijkstra(int startNode, int endNode)
 
     int intersectNode = -1; // Buat belum ada titik Temu
     int bestDist = INF;
-
+    int loopCounter = 0;
     cout << "Traversal jalur " << univ[startNode].name << " <---> " << univ[endNode].name << "..." << endl;
+    cout << "========================" << endl;
 
     // Selama Belum ada `break`
     while (true)
     {
+        loopCounter++;
         // Forward Traverse (dari START)
         // Index Node dari Starting Point
         int startNodeIdx = getMinDistNode(distStart, visitedStart, numNodes);
@@ -391,6 +394,8 @@ void bidirectionalDijkstra(int startNode, int endNode)
                 cout << "\n>>Distance Check [" << univ[i].name << "] : " << distStart[i] << " ; " << distEnd[i];
             }
         }
+        cout << endl
+             << endl;
 
         // Kondisi Final stop, Node u sudah dikunjungi dari kedua arah Ter Intersect
         if (visitedStart[startNodeIdx] && visitedEnd[startNodeIdx])
@@ -400,21 +405,21 @@ void bidirectionalDijkstra(int startNode, int endNode)
                 intersectNode = currentIntersect;
                 bestDist = currentBest;
                 // REVIEW - Buat Debug
-                cout << "\n>> Iterasi >> Terakhir " << "Current Best: " << currentBest << " Intersect Loc: " << currentIntersect << endl
+                cout << "\n>> Iterasi Terakhir " << "Current Best: " << currentBest << " Intersect Loc: " << currentIntersect << endl
                      << endl;
                 break;
             }
         }
         // REVIEW - Buat Debug
-        cout << "\n>> Iterasi >> " << "Current Best: " << currentBest << " Intersect Loc: " << currentIntersect << endl
+        cout << "\033[33;5m>> Iterasi [" << loopCounter << "]\033[0m,  Current Best: " << currentBest << " Intersect Loc: " << currentIntersect << endl
              << endl;
     }
 
     // Jika bertemu dengan node intersect
     if (intersectNode != -1)
     {
-        cout << "\n>> Terintercept di : " << univ[intersectNode].name << endl;
-        // Menampilkan seluruh
+        cout << ">> Intersaction di : " << univ[intersectNode].name << endl;
+        // Menampilkan seluruh Node yang sudah di traversal
         printPath(intersectNode, startNode, endNode);
         cout << "Total Jarak: " << bestDist << " km" << endl;
     }
@@ -427,7 +432,8 @@ void bidirectionalDijkstra(int startNode, int endNode)
 
 int main()
 {
-    cout << "=== PENCARI JALAN KAMPUS JOGJA (Dijkstra Bidirectional) ===" << endl;
+    system("cls");
+    cout << "\033[7m=== PENCARI JALAN KAMPUS JOGJA (Dijkstra Bidirectional) ===\033[0m" << endl;
 
     // Nama file json BUKAN pathnya
     string jsonFile = "universitas.json";
@@ -439,12 +445,12 @@ int main()
 
     do
     {
-        cout << "\n--- MENU UTAMA ---" << endl;
+        cout << "\n\033[4m<--- MENU UTAMA --->\033[0m" << endl;
         cout << "1: Cari Jalur Terpendek" << endl;
         cout << "2: Tampilkan Adjacency List (Debug)" << endl;
         cout << "3: Tambah Node Kampus Baru" << endl;
         cout << "4: Refresh" << endl;
-        cout << "5: Keluar" << endl;
+        cout << "\033[31m5: Keluar\033[0m" << endl;
         cout << "Pilihan: ";
 
         // Error Handling
@@ -461,6 +467,7 @@ int main()
         {
         case 1:
         {
+            system("cls");
             cout << "List Kampus:" << endl;
             for (int i = 0; i < numNodes; i++)
             {
@@ -485,6 +492,7 @@ int main()
 
         case 2:
         {
+            system("cls");
             // Menampilkan Seluruh Adjacency List
             for (int i = 0; i < numNodes; i++)
             {
@@ -505,6 +513,7 @@ int main()
 
         case 3:
         {
+            system("cls");
             string newUnivName;
             cout << "Masukkan Nama Kampus Baru (Singkatan ex: UTIYI ): ";
             cin >> newUnivName;
@@ -564,6 +573,7 @@ int main()
 
         case 4:
         {
+            system("cls");
             cout << "\n>> Refresh File from JSON" << jsonFile << endl;
             loadData_json(jsonFile);
         }
@@ -571,15 +581,15 @@ int main()
 
         case 5:
         {
-            cout << "Terima kasih sudah menggunakan program ini!!" << endl;
+            cout << "Terima kasih sudah menggunakan program ini!!, Sampai Jumpa lagi!!" << endl;
         }
         break;
 
         default:
         {
+            system("cls");
             cout << "Apa yang anda Mau sebenarnya?" << endl;
         }
-
         break;
         }
     } while (opt != 5);

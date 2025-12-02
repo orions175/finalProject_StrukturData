@@ -337,7 +337,9 @@ void bidirectionalDijkstra(int startNode, int endNode)
                     parentStart[v] = startNodeIdx;
                 }
                 // REVIEW - Buat Debugging
-                cout << "Traversal (Start) " << univ[curr->to].name << ", Distance:  " << distStart[v] << endl;
+
+                string univStart = visitedStart[curr->to] ? "\033[31m" + univ[curr->to].name + "\033[0m" : univ[curr->to].name;
+                cout << "Traversal (Start) " << univStart << ", Distance:  " << distStart[v] << endl;
 
                 curr = curr->next; // Geser ke tetangga berikutnya
             }
@@ -365,7 +367,8 @@ void bidirectionalDijkstra(int startNode, int endNode)
                     parentEnd[e] = endNodeIdx;
                 }
                 // REVIEW Buat Debugging
-                cout << "Traversal (End) " << univ[curr->to].name << ", Distance:  " << distEnd[e] << endl;
+                string univEnd = visitedEnd[curr->to] ? "\033[31m" + univ[curr->to].name + "\033[0m" : univ[curr->to].name;
+                cout << "Traversal (End) " << univEnd << ", Distance:  " << distEnd[e] << endl;
 
                 curr = curr->next; // Geser ke tetangga berikutnya
             }
@@ -380,6 +383,7 @@ void bidirectionalDijkstra(int startNode, int endNode)
         int currentBest = INF;
         int currentIntersect = -1;
 
+        cout << ">> Posible Intersection : ";
         // Traverse semua node buat cari titik temu (Intersection Check)
         for (int i = 0; i < numNodes; i++)
         {
@@ -391,7 +395,7 @@ void bidirectionalDijkstra(int startNode, int endNode)
                     currentBest = total;
                     currentIntersect = i;
                 }
-                cout << "\n>>Distance Check [" << univ[i].name << "] : " << distStart[i] << " ; " << distEnd[i];
+                cout << "\n> Distance Check [" << univ[i].name << "] : " << distStart[i] << " ; " << distEnd[i];
             }
         }
         cout << endl
